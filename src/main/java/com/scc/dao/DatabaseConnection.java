@@ -3,12 +3,19 @@ package com.scc.dao;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 public class DatabaseConnection {
     // Eksaktong nakaturo sa iyong studyspacebooking database
-    private static final String URL = "jdbc:sqlite:studyspacebooking.db";
+    private static final String DB_URL = "jdbc:sqlite:studyspacebooking.db";
 
     public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(URL);
+        Connection conn = DriverManager.getConnection(DB_URL);
+
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("PRAGMA foreign_keys = ON;");
+        }
+
+        return conn;
     }
 }
