@@ -42,13 +42,13 @@ public class AdminMenu {
                     handleApproveUser();
                     break;
                 case "3":
-                    System.out.println("-> Feature under development.");
+                    handleAddNewUser();
                     break;
                 case "4":
-                    System.out.println("-> Feature under development.");
+                    handleUpdateUserRoleAndStatus(currentUser);
                     break;
                 case "5":
-                    System.out.println("-> Feature under development.");
+                    handleDeleteUser(currentUser);
                     break;
                 case "6":
                     System.out.println("-> Feature under development.");
@@ -149,18 +149,194 @@ public class AdminMenu {
         System.out.println("+-----+------------+-----------------+----------+------------+------------+----------+---------------------+");
 
         System.out.print("\nEnter User ID to approve (or type 0 to go back): ");
-        try {
-            int userIdToApprove = Integer.parseInt(sc.nextLine());
-            if (userIdToApprove == 0) return;
+        int userIdToApprove = readIntInput("");
+        if (userIdToApprove == 0) return;
 
-            boolean success = userDao.approveUser(userIdToApprove);
-            if (success) {
-                System.out.println("-> Account successfully APPROVED!");
-            } else {
-                System.out.println("-> Failed to approve account or ID not found.");
+        boolean success = userDao.approveUser(userIdToApprove);
+        if (success) {
+            System.out.println("-> Account successfully APPROVED!");
+        } else {
+            System.out.println("-> Failed to approve account or ID not found.");
+        }
+    }
+
+    private void handleAddNewUser() {
+        System.out.println("\n--- ADD NEW USER ---");
+        System.out.print("Enter Username (or type 0 to cancel): ");
+        String username = sc.nextLine().trim();
+        if (username.equals("0")) return;
+
+        System.out.print("Enter Full Name: ");
+        String fullName = sc.nextLine().trim();
+
+        System.out.print("Enter Email: ");
+        String email = sc.nextLine().trim();
+
+        System.out.print("Enter Password: ");
+        String password = sc.nextLine().trim();
+
+        String role = readValidRole();
+        if (role.equalsIgnoreCase("CANCEL")) return;
+
+        System.out.print("Enter Student ID (or N/A): ");
+        String studentId = sc.nextLine().trim();
+
+        String status = readValidStatus();
+        if (status.equalsIgnoreCase("CANCEL")) return;
+
+        User newUser = new User(0, fullName, email, username, password, role, studentId, status, String.valueOf(System.currentTimeMillis()));
+        boolean success = userDao.addUser(newUser);
+
+        if (success) {
+            System.out.println("-> New user successfully added!");
+        } else {
+            System.out.println("-> Failed to add new user. Username or email might already exist.");
+        }
+    }
+
+    private void handleUpdateUserRoleAndStatus(User currentUser) {
+        System.out.println("\n--- UPDATE USER ROLE AND STATUS ---");
+
+        List<User> allUsers = userDao.getAllUsers();
+        if (allUsers.isEmpty()) {
+            System.out.println("No users found in the system.");
+            return;
+        }
+
+        // Display compact table matching the requested style
+        System.out.println("+-----+-------------------+----------+------------+");
+        System.out.printf("| %-3s | %-17s | %-8s | %-10s |\n", "ID", "Username", "Role", "Status");
+        System.out.println("+-----+-------------------+----------+------------+");
+        for (User u : allUsers) {
+            System.out.printf("| %-3d | %-17s | %-8s | %-10s |\n",
+                    u.user_id(),
+                    u.username(),
+                    u.role(),
+                    u.status()
+            );
+        }
+        System.out.println("+-----+-------------------+----------+------------+");
+
+        int targetUserId = -1;
+        User targetUser = null;
+
+        while (true) {
+            System.out.print("Enter User ID to update (0 to cancel): ");
+            String input = sc.nextLine().trim();
+            try {
+                targetUserId = Integer.parseInt(input);
+                if (targetUserId == 0) return;
+
+                // Find user object
+                targetUser = null;
+                for (User u : allUsers) {
+                    if (u.user_id() == targetUserId) {
+                        targetUser = u;
+                        break;
+                    }
+                }
+
+                if (targetUser == null) {
+                    System.out.println("User ID not found. Please try again.");
+                    continue;
+                }
+
+                // Self-Edit Restriction
+                if (targetUserId == currentUser.user_id()) {
+                    System.out.println("WARNING: Modifying the currently active admin account is restricted.");
+                    continue;
+                }
+                break;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter a number.");
             }
-        } catch (NumberFormatException e) {
-            System.out.println("-> Invalid input. Please enter a valid number ID.");
+        }
+
+        String newRole = readValidRole();
+        if (newRole.equalsIgnoreCase("CANCEL")) return;
+
+        String newStatus = readValidStatus();
+        if (newStatus.equalsIgnoreCase("CANCEL")) return;
+
+        boolean success = userDao.updateUserRoleAndStatus(targetUserId, newRole, newStatus);
+        if (success) {
+            System.out.println("User '" + targetUser.username() + "' (ID " + targetUserId + ") updated successfully: role = " + newRole.toUpperCase() + ", status = " + newStatus.toUpperCase() + ".");
+        } else {
+            System.out.println("-> Failed to update user.");
+        }
+    }
+
+    private void handleDeleteUser(User currentUser) {
+        handleViewAllUsers();
+
+        System.out.print("\nEnter Target User ID to delete (or type 0 to cancel): ");
+        int targetUserId = readIntInput("");
+        if (targetUserId == 0) return;
+
+        // Self-Deletion Restriction
+        if (targetUserId == currentUser.user_id()) {
+            System.out.println("-> WARNING: Deleting the currently active admin account is restricted.");
+            return;
+        }
+
+        System.out.print("Are you sure you want to delete User ID " + targetUserId + "? (y/n): ");
+        String confirmation = sc.nextLine().trim().toLowerCase();
+        if (!confirmation.equals("y")) {
+            System.out.println("-> Deletion cancelled.");
+            return;
+        }
+
+        boolean success = userDao.deleteUser(targetUserId);
+        if (success) {
+            System.out.println("-> User account successfully deleted!");
+        } else {
+            System.out.println("-> Failed to delete user. User ID may not exist.");
+        }
+    }
+
+    // --- Input Validation Wrappers ---
+
+    private int readIntInput(String prompt) {
+        while (true) {
+            if (!prompt.isEmpty()) {
+                System.out.print(prompt);
+            }
+            String input = sc.nextLine().trim();
+            try {
+                return Integer.parseInt(input);
+            } catch (NumberFormatException e) {
+                System.out.print("Invalid input. Please enter a number: ");
+            }
+        }
+    }
+
+    private String readValidRole() {
+        while (true) {
+            System.out.println("Valid roles: ADMIN, STAFF, STUDENT");
+            System.out.print("Enter new role (0 to cancel): ");
+            String role = sc.nextLine().trim().toUpperCase();
+            if (role.equals("0")) {
+                return "CANCEL";
+            }
+            if (role.equals("ADMIN") || role.equals("STAFF") || role.equals("STUDENT")) {
+                return role;
+            }
+            System.out.println("Invalid role. Please try again.");
+        }
+    }
+
+    private String readValidStatus() {
+        while (true) {
+            System.out.println("Valid statuses: APPROVED, PENDING");
+            System.out.print("Enter new status (0 to cancel): ");
+            String status = sc.nextLine().trim().toUpperCase();
+            if (status.equals("0")) {
+                return "CANCEL";
+            }
+            if (status.equals("APPROVED") || status.equals("PENDING")) {
+                return status;
+            }
+            System.out.println("Invalid status. Please try again.");
         }
     }
 }
