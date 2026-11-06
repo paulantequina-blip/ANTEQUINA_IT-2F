@@ -11,23 +11,30 @@ public class Main {
 
     public static void main(String[] args) {
 
-        System.out.println("Starting Study Space Booking System...");
+        // Tinanggal na ang mga lumang print statements sa itaas
 
-        // Initialize database
+        // Initialize the database tables
         Databaseinitializer.initializer();
 
-        // Initialize UserDao
+        // Create UserDao
         UserDao userDao = new UserDao();
 
-        // Scanner for user input
+        // ... sunod na ang iba pang codes
+
+        // Create Scanner
         Scanner scanner = new Scanner(System.in);
 
         // Start Authentication
-        Authentication auth = new Authentication(userDao, scanner);
-        auth.start();
+        Authentication authentication =
+                new Authentication(userDao, scanner);
 
+        authentication.start();
+
+        // Close Scanner after logout/exit
         scanner.close();
 
-        System.out.println("Study Space Booking System Closed.");
+        System.out.println("\n======================================");
+        System.out.println("STUDY SPACE BOOKING SYSTEM CLOSED");
+        System.out.println("======================================");
     }
 }
