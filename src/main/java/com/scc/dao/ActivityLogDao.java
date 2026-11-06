@@ -1,4 +1,3 @@
-
 package com.scc.dao;
 
 import com.scc.model.ActivityLog;
@@ -16,9 +15,7 @@ public class ActivityLogDao {
     }
 
     // SAVE LOGIN, LOGOUT AND OTHER ACTIVITIES
-    public void logAction(int userId, String action,
-                          String description) throws SQLException {
-
+    public void logAction(int userId, String action, String description) throws SQLException {
         String sql = """
                 INSERT INTO activitylogs
                 (user_id, action, description, log_timestamp)
@@ -35,9 +32,7 @@ public class ActivityLogDao {
 
     // GET ALL LOGS
     public List<ActivityLog> getAllLogs() throws SQLException {
-
         List<ActivityLog> logs = new ArrayList<>();
-
         String sql = """
                 SELECT * FROM activitylogs
                 ORDER BY log_id DESC
@@ -61,11 +56,8 @@ public class ActivityLogDao {
     }
 
     // GET LOGS BY USER ID
-    public List<ActivityLog> getLogsByUserId(int userId)
-            throws SQLException {
-
+    public List<ActivityLog> getLogsByUserId(int userId) throws SQLException {
         List<ActivityLog> logs = new ArrayList<>();
-
         String sql = """
                 SELECT * FROM activitylogs
                 WHERE user_id = ?
@@ -93,13 +85,31 @@ public class ActivityLogDao {
 
     // COUNT LOGS
     public int getTotalLogs() throws SQLException {
-
         String sql = "SELECT COUNT(*) FROM activitylogs";
 
         try (PreparedStatement ps = connection.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
             return rs.next() ? rs.getInt(1) : 0;
+        }
+    }
+
+    // PRINT LOGS TABLE FORMAT
+    public void printLogsTable() throws SQLException {
+        List<ActivityLog> logs = getAllLogs();
+
+        System.out.printf("%-10s %-10s %-18s %-45s %-25s%n",
+                "LOG ID",    "USER ID", "ACTION",                      "DESCRIPTION",                                       "TIMESTAMP");
+        System.out.println("-------------------------------------------------------------------------------------------------------------------------------------");
+
+        for (ActivityLog log : logs) {
+            System.out.printf("%-10d %-10d %-18s %-45s %-25s%n",
+                    log.getLog_id(),
+                    log.getUser_id(),
+                    log.getAction(),
+                    log.getDescription() != null ? log.getDescription() : "",
+                    log.getLog_timestamp() != null ? log.getLog_timestamp() : ""
+            );
         }
     }
 }

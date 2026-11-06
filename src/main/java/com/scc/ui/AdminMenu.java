@@ -305,12 +305,13 @@ public class AdminMenu {
             return;
         }
 
-        System.out.println("\n═══════════════════════════════════════════════════════════════════════════════");
-        System.out.printf(" %-8s %-10s %-15s %-35s %-22s%n", "LOG ID", "USER ID", "ACTION", "DESCRIPTION", "TIMESTAMP");
-        System.out.println("───────────────────────────────────────────────────────────────────────────────");
+        System.out.println("ALL SYSTEM LOGS");
+        System.out.println("----------------------------------------------------------------------------------------------------------------------------------");
+        System.out.printf("%-4s | %-9s | %-16s | %-55s | %-19s%n", "ID", "USER ID", "ACTION TYPE", "DESCRIPTION", "TIMESTAMP");
+        System.out.println("----------------------------------------------------------------------------------------------------------------------------------");
 
         for (ActivityLog log : logs) {
-            System.out.printf(" %-8d %-10d %-15s %-35s %-22s%n",
+            System.out.printf("%-4d | %-9d | %-16s | %-55s | %-19s%n",
                     log.getLog_id(),
                     log.getUser_id(),
                     log.getAction(),
@@ -318,7 +319,7 @@ public class AdminMenu {
                     log.getLog_timestamp()
             );
         }
-        System.out.println("═══════════════════════════════════════════════════════════════════════════════");
+        System.out.println("----------------------------------------------------------------------------------------------------------------------------------");
     }
 
     private void logout(User currentUser) {
