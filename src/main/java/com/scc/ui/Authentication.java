@@ -1,7 +1,13 @@
+
 package com.scc.ui;
 
+import com.scc.dao.ActivityLogDao;
+import com.scc.dao.DatabaseConnection;
 import com.scc.dao.UserDao;
 import com.scc.model.User;
+
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Scanner;
 
 public class Authentication {
@@ -15,83 +21,122 @@ public class Authentication {
     }
 
     public void start() {
-        while (true) {
-            System.out.println("\n===============================");
-            System.out.println(" Study Space Booking System ");
-            System.out.println("===============================");
-            System.out.println("1. Log in");
-            System.out.println("2. Register");
-            System.out.println("3. Exit");
-            System.out.print("Choose an option: ");
-            String choice = scanner.nextLine();
+
+        boolean running = true;
+
+        while (running) {
+
+            System.out.println("\n================================");
+            System.out.println("   STUDY SPACE BOOKING SYSTEM");
+            System.out.println("================================");
+            System.out.println("[1] Login");
+            System.out.println("[2] Register");
+            System.out.println("[3] Exit");
+            System.out.print("Enter choice: ");
+
+            String choice = scanner.nextLine().trim();
 
             switch (choice) {
+
                 case "1":
-                    handleLogin();
+                    login();
                     break;
 
                 case "2":
-                    System.out.print("Enter Full Name: ");
-                    String fullName = scanner.nextLine();
-                    System.out.print("Enter Email: ");
-                    String email = scanner.nextLine();
-                    System.out.print("Enter Student ID: ");
-                    String studentId = scanner.nextLine();
-                    System.out.print("Enter new username: ");
-                    String user = scanner.nextLine();
-                    System.out.print("Enter Password: ");
-                    String pass = scanner.nextLine();
-
-                    System.out.print("Select role [1] ADMIN [2] STUDENT [3] STAFF: ");
-                    int roleChoice = scanner.nextInt();
-                    scanner.nextLine(); // consume newline
-
-                    String role = switch (roleChoice) {
-                        case 1 -> "ADMIN";
-                        case 2 -> "STUDENT";
-                        case 3 -> "STAFF";
-                        default -> null;
-                    };
-
-                    if (role != null) {
-                        userDao.registerUser(fullName, email, user, pass, role, studentId);
-                    } else {
-                        System.out.println("Invalid role selection!");
-                    }
+                    System.out.println(
+                            "Connect your existing registration method here."
+                    );
                     break;
 
                 case "3":
-                    System.out.println("Exiting system. Goodbye!");
-                    return;
+                    running = false;
+                    System.out.println("Thank you for using the system!");
+                    break;
 
                 default:
-                    System.out.println("Invalid choice. Please select 1, 2, or 3.");
+                    System.out.println("Invalid choice.");
             }
-
-            break;
         }
     }
 
-    private void handleLogin() {
-        System.out.print("Enter username: ");
-        String username = scanner.nextLine();
-        System.out.print("Enter Password: ");
-        String password = scanner.nextLine();
+    private void login() {
 
-        User user = userDao.login(username, password);
+        try {
+            System.out.println("\n========== LOGIN ==========");
 
-        if (user != null) {
-            System.out.println("\n-> Welcome " + user.username() + " | ROLE: " + user.role());
-            switch (user.role().toUpperCase()) {
-                case "ADMIN" -> new AdminMenu(userDao, scanner).display(user);
-                case "STUDENT" -> {
-                    System.out.println("-> Student Dashboard (Feature under development)");
-                }
-                case "STAFF" -> {
-                    System.out.println("-> Staff Dashboard (Feature under development)");
-                }
-                default -> System.out.println("-> Account role not recognized!");
+            System.out.print("Username: ");
+            String username = scanner.nextLine().trim();
+
+            System.out.print("Password: ");
+            String password = scanner.nextLine().trim();
+
+            User user = userDao.login(username, password);
+
+            if (user == null) {
+                System.out.println("Invalid username or password.");
+                return;
             }
+
+            if (!"APPROVED".equalsIgnoreCase(user.status())) {
+                System.out.println("Your account is not approved.");
+                return;
+            }
+
+            // SAVE SUCCESSFUL LOGIN
+            try (Connection connection =
+                         DatabaseConnection.getConnection()) {
+
+                ActivityLogDao logDao =
+                        new ActivityLogDao(connection);
+
+                logDao.logAction(
+                        user.user_id(),
+                        "LOGIN",
+                        user.username() + " logged in successfully"
+                );
+            }
+
+            System.out.println("Login successful!");
+
+            // OPEN ADMIN MENU
+            if ("ADMIN".equalsIgnoreCase(user.role())) {
+
+                try (Connection connection =
+                             DatabaseConnection.getConnection()) {
+
+                    ActivityLogDao logDao =
+                            new ActivityLogDao(connection);
+
+                    AdminMenu adminMenu = new AdminMenu(
+                            userDao,
+                            logDao,
+                            scanner
+                    );
+
+                    adminMenu.display(user);
+                }
+
+            } else if ("STUDENT".equalsIgnoreCase(user.role())) {
+
+                System.out.println("Student dashboard is not connected yet.");
+
+                // Connect your existing StudentMenu here.
+
+            } else if ("STAFF".equalsIgnoreCase(user.role())
+                    || "LIBRARIAN".equalsIgnoreCase(user.role())) {
+
+                System.out.println("Staff dashboard is not connected yet.");
+
+                // Connect your existing StaffMenu here.
+
+            } else {
+                System.out.println("Unknown user role.");
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Database error: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Login error: " + e.getMessage());
         }
     }
 }
