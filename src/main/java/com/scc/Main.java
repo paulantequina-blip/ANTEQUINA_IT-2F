@@ -34,7 +34,7 @@ public class Main {
         scanner.close();
 
         System.out.println("\n==========================================================");
-        System.out.println(               "STUDY SPACE BOOKING SYSTEM CLOSED");
+        System.out.println("STUDY SPACE BOOKING SYSTEM CLOSED");
         System.out.println("=======-----------------------===============================");
     }
 }

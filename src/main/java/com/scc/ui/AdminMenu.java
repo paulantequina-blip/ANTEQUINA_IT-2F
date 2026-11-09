@@ -11,6 +11,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Scanner;
 
@@ -45,14 +47,13 @@ public class AdminMenu {
             System.out.println("----------------------------------------");
 
             System.out.println("[1] View All Users");
-            System.out.println("[2] Approve User Registration");
+            System.out.println("[2] Manage User Accounts");
             System.out.println("[3] Add New User");
-            System.out.println("[4] Update User Role / Status");
-            System.out.println("[5] Delete User Account");
-            System.out.println("[6] Manage Study Spaces");
-            System.out.println("[7] Approve / Reject Reservation");
-            System.out.println("[8] View System Audit Logs");
-            System.out.println("[9] Logout");
+            System.out.println("[4] Delete User Account");
+            System.out.println("[5] Manage Study Spaces");
+            System.out.println("[6] View System Audit Logs");
+            System.out.println("[7] Daily Booking Report");
+            System.out.println("[8] Logout");
 
             System.out.println("========================================");
             System.out.print("Enter choice: ");
@@ -69,8 +70,7 @@ public class AdminMenu {
                         break;
 
                     case "2":
-                        approveUserRegistration(currentUser);
-                        pause();
+                        manageUserAccounts(currentUser);
                         break;
 
                     case "3":
@@ -79,30 +79,25 @@ public class AdminMenu {
                         break;
 
                     case "4":
-                        updateUser(currentUser);
-                        pause();
-                        break;
-
-                    case "5":
                         deleteUser(currentUser);
                         pause();
                         break;
 
-                    case "6":
+                    case "5":
                         manageStudySpaces(currentUser);
                         break;
 
-                    case "7":
-                        manageReservations();
-                        pause();
-                        break;
-
-                    case "8":
+                    case "6":
                         viewAuditLogs();
                         pause();
                         break;
 
-                    case "9":
+                    case "7":
+                        dailyBookingReport(currentUser);
+                        pause();
+                        break;
+
+                    case "8":
                         logout(currentUser);
                         running = false;
                         break;
@@ -136,22 +131,89 @@ public class AdminMenu {
         System.out.println("\n================ ALL USERS ================");
 
         System.out.printf(
-                "%-8s %-20s %-15s %-12s %-10s%n",
+                "%-8s %-25s %-20s %-12s %-12s%n",
                 "User ID", "Full Name", "Username", "Role", "Status"
         );
 
-        System.out.println("-".repeat(75));
+        System.out.println("-".repeat(85));
 
         for (User user : users) {
 
             System.out.printf(
-                    "%-8d %-20s %-15s %-12s %-10s%n",
+                    "%-8d %-25s %-20s %-12s %-12s%n",
                     user.user_id(),
                     user.fullName(),
                     user.username(),
                     user.role(),
                     user.status()
             );
+        }
+
+        System.out.println("-".repeat(85));
+    }
+
+    // =====================================
+    // MANAGE USER ACCOUNTS
+    // =====================================
+    private void manageUserAccounts(User currentUser)
+            throws SQLException {
+
+        boolean managing = true;
+
+        while (managing) {
+
+            System.out.println("\n========================================");
+            System.out.println("          MANAGE USER ACCOUNTS");
+            System.out.println("========================================");
+
+            System.out.println("[1] View All Users");
+            System.out.println("[2] Approve User Registration");
+            System.out.println("[3] Update User Role");
+            System.out.println("[4] Update User Status");
+            System.out.println("[5] Back to Admin Dashboard");
+
+            System.out.println("========================================");
+            System.out.print("Enter choice: ");
+
+            String choice = sc.nextLine().trim();
+
+            try {
+
+                switch (choice) {
+
+                    case "1":
+                        viewAllUsers();
+                        pause();
+                        break;
+
+                    case "2":
+                        approveUserRegistration(currentUser);
+                        pause();
+                        break;
+
+                    case "3":
+                        updateUserRole(currentUser);
+                        pause();
+                        break;
+
+                    case "4":
+                        updateUserStatus(currentUser);
+                        pause();
+                        break;
+
+                    case "5":
+                        managing = false;
+                        break;
+
+                    default:
+                        System.out.println("Invalid choice.");
+                        pause();
+                }
+
+            } catch (SQLException e) {
+                System.out.println("Database error: " + e.getMessage());
+                pause();
+            }
         }
     }
 
@@ -161,18 +223,24 @@ public class AdminMenu {
     private void approveUserRegistration(User currentUser)
             throws SQLException {
 
-        System.out.println("\n========== APPROVE USER ==========");
+        System.out.println("\n========== APPROVE USER REGISTRATION ==========");
 
         viewAllUsers();
 
-        System.out.print("\nEnter User ID to approve (0 to cancel): ");
-
-        int userId = Integer.parseInt(sc.nextLine().trim());
+        int userId = readNonNegativeInteger(
+                "\nEnter User ID to approve (0 to cancel): "
+        );
 
         if (userId == 0) return;
 
+        if (userId == currentUser.user_id()) {
+            System.out.println("You cannot change your own admin account.");
+            return;
+        }
+
         boolean updated = userDao.updateUserStatus(
-                userId, "APPROVED");
+                userId, "APPROVED"
+        );
 
         if (updated) {
 
@@ -190,37 +258,171 @@ public class AdminMenu {
     }
 
     // =====================================
+    // UPDATE USER ROLE
+    // =====================================
+    private void updateUserRole(User currentUser)
+            throws SQLException {
+
+        System.out.println("\n========== UPDATE USER ROLE ==========");
+
+        viewAllUsers();
+
+        int userId = readNonNegativeInteger(
+                "\nEnter User ID (0 to cancel): "
+        );
+
+        if (userId == 0) return;
+
+        if (userId == currentUser.user_id()) {
+            System.out.println(
+                    "You cannot modify your own admin account."
+            );
+            return;
+        }
+
+        System.out.println("\n[1] ADMIN");
+        System.out.println("[2] STUDENT");
+        System.out.println("[3] STAFF");
+
+        System.out.print("Choose New Role: ");
+
+        String role;
+
+        switch (sc.nextLine().trim()) {
+
+            case "1":
+                role = "ADMIN";
+                break;
+
+            case "2":
+                role = "STUDENT";
+                break;
+
+            case "3":
+                role = "STAFF";
+                break;
+
+            default:
+                System.out.println("Invalid role.");
+                return;
+        }
+
+        boolean updated = userDao.updateUserRoleAndStatus(
+                userId,
+                role,
+                null
+        );
+
+        if (updated) {
+
+            System.out.println("User role updated successfully!");
+
+            activityLogDao.logAction(
+                    currentUser.user_id(),
+                    "UPDATE_USER_ROLE",
+                    "Admin changed user ID " + userId
+                            + " role to " + role
+            );
+
+        } else {
+            System.out.println("User not found or update failed.");
+        }
+    }
+
+    // =====================================
+    // UPDATE USER STATUS
+    // =====================================
+    private void updateUserStatus(User currentUser)
+            throws SQLException {
+
+        System.out.println("\n========== UPDATE USER STATUS ==========");
+
+        viewAllUsers();
+
+        int userId = readNonNegativeInteger(
+                "\nEnter User ID (0 to cancel): "
+        );
+
+        if (userId == 0) return;
+
+        if (userId == currentUser.user_id()) {
+            System.out.println(
+                    "You cannot modify your own admin account."
+            );
+            return;
+        }
+
+        System.out.println("\n[1] APPROVED");
+        System.out.println("[2] PENDING");
+        System.out.println("[3] REJECTED");
+
+        System.out.print("Choose New Status: ");
+
+        String status;
+
+        switch (sc.nextLine().trim()) {
+
+            case "1":
+                status = "APPROVED";
+                break;
+
+            case "2":
+                status = "PENDING";
+                break;
+
+            case "3":
+                status = "REJECTED";
+                break;
+
+            default:
+                System.out.println("Invalid status.");
+                return;
+        }
+
+        boolean updated = userDao.updateUserRoleAndStatus(
+                userId,
+                null,
+                status
+        );
+
+        if (updated) {
+
+            System.out.println("User status updated successfully!");
+
+            activityLogDao.logAction(
+                    currentUser.user_id(),
+                    "UPDATE_USER_STATUS",
+                    "Admin changed user ID " + userId
+                            + " status to " + status
+            );
+
+        } else {
+            System.out.println("User not found or update failed.");
+        }
+    }
+
+    // =====================================
     // ADD NEW USER
     // =====================================
     private void addNewUser(User currentUser) throws SQLException {
 
         System.out.println("\n========== ADD NEW USER ==========");
 
-        System.out.print("Full Name: ");
-        String fullName = sc.nextLine().trim();
-
-        System.out.print("Email: ");
-        String email = sc.nextLine().trim();
-
-        System.out.print("Student/Staff ID: ");
-        String studentId = sc.nextLine().trim();
-
-        System.out.print("Username: ");
-        String username = sc.nextLine().trim();
-
-        System.out.print("Password: ");
-        String password = sc.nextLine().trim();
+        String fullName = readRequired("Full Name: ");
+        String email = readRequired("Email: ");
+        String studentId = readRequired("Student/Staff ID: ");
+        String username = readRequired("Username: ");
+        String password = readRequired("Password: ");
 
         System.out.println("\n[1] ADMIN");
         System.out.println("[2] STUDENT");
         System.out.println("[3] STAFF");
-        System.out.print("Choose Role: ");
 
-        String roleChoice = sc.nextLine().trim();
+        System.out.print("Choose Role: ");
 
         String role;
 
-        switch (roleChoice) {
+        switch (sc.nextLine().trim()) {
 
             case "1":
                 role = "ADMIN";
@@ -265,53 +467,6 @@ public class AdminMenu {
     }
 
     // =====================================
-    // UPDATE USER
-    // =====================================
-    private void updateUser(User currentUser) throws SQLException {
-
-        System.out.println("\n========== UPDATE USER ==========");
-
-        viewAllUsers();
-
-        System.out.print("\nEnter User ID (0 to cancel): ");
-
-        int userId = Integer.parseInt(sc.nextLine().trim());
-
-        if (userId == 0) return;
-
-        if (userId == currentUser.user_id()) {
-            System.out.println("You cannot modify your own admin account here.");
-            return;
-        }
-
-        System.out.print("New Role (ADMIN/STUDENT/STAFF) or Enter to skip: ");
-        String role = sc.nextLine().trim();
-
-        System.out.print("New Status (APPROVED/PENDING/REJECTED) or Enter to skip: ");
-        String status = sc.nextLine().trim();
-
-        boolean updated = userDao.updateUserRoleAndStatus(
-                userId,
-                role.isEmpty() ? null : role.toUpperCase(),
-                status.isEmpty() ? null : status.toUpperCase()
-        );
-
-        if (updated) {
-
-            System.out.println("User updated successfully!");
-
-            activityLogDao.logAction(
-                    currentUser.user_id(),
-                    "UPDATE_USER",
-                    "Admin updated user ID: " + userId
-            );
-
-        } else {
-            System.out.println("Update failed.");
-        }
-    }
-
-    // =====================================
     // DELETE USER
     // =====================================
     private void deleteUser(User currentUser) throws SQLException {
@@ -320,23 +475,23 @@ public class AdminMenu {
 
         viewAllUsers();
 
-        System.out.print("\nEnter User ID to delete (0 to cancel): ");
-
-        int userId = Integer.parseInt(sc.nextLine().trim());
+        int userId = readNonNegativeInteger(
+                "\nEnter User ID to delete (0 to cancel): "
+        );
 
         if (userId == 0) return;
 
         if (userId == currentUser.user_id()) {
-            System.out.println("You cannot delete your own admin account.");
+            System.out.println(
+                    "You cannot delete your own admin account."
+            );
             return;
         }
 
-        System.out.print(
-                "Are you sure you want to delete user #" + userId + "? (Y/N): ");
-
-        String answer = sc.nextLine().trim();
-
-        if (answer.equalsIgnoreCase("Y")) {
+        if (confirm(
+                "Are you sure you want to delete user #"
+                        + userId + "? (Y/N): "
+        )) {
 
             boolean deleted = userDao.deleteUser(userId);
 
@@ -361,7 +516,6 @@ public class AdminMenu {
 
     // =====================================
     // MANAGE STUDY SPACES
-    // ADMIN ONLY
     // =====================================
     private void manageStudySpaces(User admin) {
 
@@ -437,12 +591,12 @@ public class AdminMenu {
             System.out.println("\n================ STUDY SPACES ================");
 
             System.out.printf(
-                    "%-5s %-20s %-18s %-9s %-22s %-9s %-14s%n",
+                    "%-7s %-25s %-22s %-10s %-25s %-10s %-15s%n",
                     "ID", "Name", "Type", "Capacity",
                     "Location", "Outlet", "Status"
             );
 
-            System.out.println("-".repeat(105));
+            System.out.println("-".repeat(125));
 
             boolean found = false;
 
@@ -451,7 +605,7 @@ public class AdminMenu {
                 found = true;
 
                 System.out.printf(
-                        "%-5d %-20s %-18s %-9d %-22s %-9s %-14s%n",
+                        "%-7d %-25s %-22s %-10d %-25s %-10s %-15s%n",
                         rs.getInt("space_id"),
                         rs.getString("space_name"),
                         rs.getString("space_type"),
@@ -466,13 +620,12 @@ public class AdminMenu {
                 System.out.println("No study spaces found.");
             }
 
-            System.out.println("-".repeat(105));
+            System.out.println("-".repeat(125));
         }
     }
 
     // =====================================
     // ADD STUDY SPACE
-    // INSERT DIRECTLY INTO SQLITE
     // =====================================
     private void addStudySpace(User admin) throws SQLException {
 
@@ -480,11 +633,8 @@ public class AdminMenu {
 
         String name = readRequired("Space Name: ");
         String type = readSpaceType();
-
         int capacity = readPositiveInteger("Capacity: ");
-
         String location = readRequired("Location: ");
-
         boolean hasOutlet = confirm("Has power outlet? (Y/N): ");
 
         System.out.println("\n---------- STUDY SPACE DETAILS ----------");
@@ -543,7 +693,6 @@ public class AdminMenu {
             } else {
                 System.out.println("Failed to add study space.");
             }
-
         }
 
         System.out.println("\nUpdated SQLite Study Spaces:");
@@ -562,15 +711,14 @@ public class AdminMenu {
         viewStudySpaces();
 
         int id = readNonNegativeInteger(
-                "\nEnter Space ID (0 to cancel): ");
+                "\nEnter Space ID (0 to cancel): "
+        );
 
         if (id == 0) return;
 
         String name = readRequired("New Space Name: ");
         String type = readSpaceType();
-
         int capacity = readPositiveInteger("New Capacity: ");
-
         String location = readRequired("New Location: ");
 
         if (!confirm("Save changes? (Y/N): ")) {
@@ -623,7 +771,8 @@ public class AdminMenu {
         viewStudySpaces();
 
         int id = readNonNegativeInteger(
-                "\nEnter Space ID (0 to cancel): ");
+                "\nEnter Space ID (0 to cancel): "
+        );
 
         if (id == 0) return;
 
@@ -633,11 +782,9 @@ public class AdminMenu {
 
         System.out.print("Choose new status: ");
 
-        String choice = sc.nextLine().trim();
-
         String status;
 
-        switch (choice) {
+        switch (sc.nextLine().trim()) {
 
             case "1":
                 status = "AVAILABLE";
@@ -668,7 +815,8 @@ public class AdminMenu {
             if (ps.executeUpdate() > 0) {
 
                 System.out.println(
-                        "Study space status changed to " + status + "!");
+                        "Study space status changed to " + status + "!"
+                );
 
                 activityLogDao.logAction(
                         admin.user_id(),
@@ -713,25 +861,14 @@ public class AdminMenu {
                     return "COMPUTER SPACE";
 
                 case "4":
-                    return readRequired("Enter space type: ").toUpperCase();
+                    return readRequired(
+                            "Enter space type: "
+                    ).toUpperCase();
 
                 default:
                     System.out.println("Invalid choice.");
             }
         }
-    }
-
-    // =====================================
-    // MANAGE RESERVATIONS
-    // =====================================
-    private void manageReservations() {
-
-        System.out.println("\n========== RESERVATION MANAGEMENT ==========");
-
-        System.out.println(
-                "Reservation approval and booking updates "
-                        + "are handled through the Staff Dashboard."
-        );
     }
 
     // =====================================
@@ -758,10 +895,7 @@ public class AdminMenu {
                 break;
 
             case "2":
-                System.out.print("Enter User ID: ");
-
-                int userId = Integer.parseInt(sc.nextLine().trim());
-
+                int userId = readPositiveInteger("Enter User ID: ");
                 logs = activityLogDao.getLogsByUserId(userId);
                 break;
 
@@ -781,16 +915,16 @@ public class AdminMenu {
         System.out.println("\n================ ALL SYSTEM LOGS ================");
 
         System.out.printf(
-                "%-5s %-10s %-20s %-45s %-20s%n",
+                "%-7s %-10s %-22s %-50s %-22s%n",
                 "ID", "USER ID", "ACTION", "DESCRIPTION", "TIMESTAMP"
         );
 
-        System.out.println("-".repeat(110));
+        System.out.println("-".repeat(120));
 
         for (ActivityLog log : logs) {
 
             System.out.printf(
-                    "%-5d %-10d %-20s %-45s %-20s%n",
+                    "%-7d %-10d %-22s %-50s %-22s%n",
                     log.getLog_id(),
                     log.getUser_id(),
                     log.getAction(),
@@ -798,6 +932,151 @@ public class AdminMenu {
                     log.getLog_timestamp()
             );
         }
+    }
+
+    // =====================================
+    // DAILY BOOKING REPORT
+    // =====================================
+    private void dailyBookingReport(User admin) throws SQLException {
+
+        System.out.println("\n==============================================================");
+        System.out.println("                    DAILY BOOKING REPORT");
+        System.out.println("==============================================================");
+
+        System.out.print("Enter Date (YYYY-MM-DD): ");
+
+        String date = sc.nextLine().trim();
+
+        try {
+            LocalDate.parse(date);
+        } catch (DateTimeParseException e) {
+            System.out.println("Invalid date. Use YYYY-MM-DD.");
+            return;
+        }
+
+        String sql = """
+                SELECT
+                    b.booking_id,
+                    b.booking_date,
+                    s.space_name,
+                    u.full_name,
+                    b.start_time,
+                    b.end_time,
+                    b.status
+                FROM bookings b
+                INNER JOIN users u
+                    ON b.user_id = u.user_id
+                INNER JOIN study_spaces s
+                    ON b.space_id = s.space_id
+                WHERE b.booking_date = ?
+                ORDER BY b.start_time
+                """;
+
+        int totalBookings = 0;
+        int approved = 0;
+        int pending = 0;
+        int cancelled = 0;
+        int noShow = 0;
+        int other = 0;
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, date);
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                System.out.println("\nREPORT DATE: " + date);
+                System.out.println("=".repeat(145));
+
+                System.out.printf(
+                        "%-9s %-13s %-25s %-23s %-15s %-15s %-15s%n",
+                        "Book ID",
+                        "Date",
+                        "Study Space",
+                        "Student Name",
+                        "Start Time",
+                        "End Time",
+                        "Status"
+                );
+
+                System.out.println("-".repeat(145));
+
+                while (rs.next()) {
+
+                    totalBookings++;
+
+                    String status = rs.getString("status");
+
+                    if (status == null) {
+                        status = "UNKNOWN";
+                    }
+
+                    switch (status.toUpperCase()) {
+
+                        case "APPROVED":
+                            approved++;
+                            break;
+
+                        case "PENDING":
+                            pending++;
+                            break;
+
+                        case "CANCELLED":
+                            cancelled++;
+                            break;
+
+                        case "NO_SHOW":
+                        case "NO-SHOW":
+                            noShow++;
+                            break;
+
+                        default:
+                            other++;
+                            break;
+                    }
+
+                    System.out.printf(
+                            "%-9d %-13s %-25s %-23s %-15s %-15s %-15s%n",
+                            rs.getInt("booking_id"),
+                            rs.getString("booking_date"),
+                            rs.getString("space_name"),
+                            rs.getString("full_name"),
+                            rs.getString("start_time"),
+                            rs.getString("end_time"),
+                            status
+                    );
+                }
+
+                System.out.println("-".repeat(145));
+
+                if (totalBookings == 0) {
+                    System.out.println(
+                            "No bookings found for this date."
+                    );
+                }
+            }
+        }
+
+        System.out.println("\n================================================");
+        System.out.println("                 REPORT SUMMARY");
+        System.out.println("================================================");
+
+        System.out.println("Report Date        : " + date);
+        System.out.println("Total Bookings     : " + totalBookings);
+        System.out.println("Approved Bookings  : " + approved);
+        System.out.println("Pending Bookings   : " + pending);
+        System.out.println("Cancelled Bookings : " + cancelled);
+        System.out.println("No-Show Bookings   : " + noShow);
+        System.out.println("Other Statuses     : " + other);
+
+        System.out.println("================================================");
+
+        activityLogDao.logAction(
+                admin.user_id(),
+                "VIEW_DAILY_REPORT",
+                "Admin generated daily booking report for " + date
+        );
     }
 
     // =====================================
@@ -818,7 +1097,8 @@ public class AdminMenu {
         } catch (SQLException e) {
 
             System.out.println(
-                    "Unable to save logout activity: " + e.getMessage());
+                    "Unable to save logout activity: " + e.getMessage()
+            );
         }
     }
 
@@ -855,7 +1135,9 @@ public class AdminMenu {
                     return number;
                 }
 
-                System.out.println("Enter a number greater than zero.");
+                System.out.println(
+                        "Enter a number greater than zero."
+                );
 
             } catch (NumberFormatException e) {
                 System.out.println("Invalid number.");
@@ -877,7 +1159,9 @@ public class AdminMenu {
                     return number;
                 }
 
-                System.out.println("Enter 0 or a positive number.");
+                System.out.println(
+                        "Enter 0 or a positive number."
+                );
 
             } catch (NumberFormatException e) {
                 System.out.println("Invalid number.");
