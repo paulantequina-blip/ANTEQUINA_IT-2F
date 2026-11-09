@@ -1,13 +1,9 @@
+
 package com.scc.ui;
 
 import com.scc.dao.BookingDao;
 import com.scc.model.User;
 
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.Scanner;
 
 public class StudentMenu {
@@ -15,274 +11,198 @@ public class StudentMenu {
     private final Scanner scanner;
     private final BookingDao bookingDao;
 
-    private static final DateTimeFormatter TIME_FORMAT =
-            DateTimeFormatter.ofPattern("HH:mm");
+    private static final String BORDER =
+            "+------------------------------------------------------------------------------+";
 
     public StudentMenu(Scanner scanner) {
         this.scanner = scanner;
         this.bookingDao = new BookingDao();
     }
 
+    // ==========================================
+    //             STUDENT DASHBOARD
+    // ==========================================
     public void display(User student) {
 
         boolean running = true;
 
         while (running) {
 
-            System.out.println("\n╔════════════════════════════════════════╗");
-            System.out.println("║       STUDY SPACE BOOKING SYSTEM       ║");
-            System.out.println("╠════════════════════════════════════════╣");
-            System.out.println("║             STUDENT MENU               ║");
-            System.out.println("╚════════════════════════════════════════╝");
-            System.out.println(" Welcome, " + student.fullName());
-            System.out.println("──────────────────────────────────────────");
-            System.out.println(" [1] View Study Spaces");
-            System.out.println(" [2] Check Space Availability");
-            System.out.println(" [3] Create Booking");
-            System.out.println(" [4] Manage My Bookings");
-            System.out.println(" [5] View My Booking History");
-            System.out.println(" [6] Logout");
-            System.out.println("══════════════════════════════════════════");
-            System.out.print(" Enter your choice: ");
+            System.out.println("\n" + BORDER);
+            printLine("STUDY SPACE BOOKING SYSTEM");
+            System.out.println(BORDER);
+
+            printLine("STUDENT MENU");
+            System.out.println(BORDER);
+
+            printLine("Welcome, " + student.fullName());
+            System.out.println(BORDER);
+
+            printLine("[1] Check Space Availability");
+            printLine("[2] Create Booking");
+            printLine("[3] Manage My Bookings");
+            printLine("[4] View My Booking History");
+            printLine("[5] Logout");
+
+            System.out.println(BORDER);
+            System.out.print("Enter your choice: ");
 
             String choice = scanner.nextLine().trim();
 
             switch (choice) {
 
                 case "1":
-                    bookingDao.displayStudySpaces();
-                    pause();
-                    break;
-
-                case "2":
-                    // View only. Does not create or change bookings.
+                    // VIEW ONLY
                     bookingDao.displaySpaceAvailability();
                     pause();
                     break;
 
-                case "3":
+                case "2":
                     createBooking(student);
                     break;
 
-                case "4":
+                case "3":
                     manageMyBookings(student);
                     break;
 
-                case "5":
+                case "4":
                     bookingDao.displayMyBookings(student.user_id());
                     pause();
                     break;
 
-                case "6":
-                    System.out.println("\n╔════════════════════════════════════════╗");
-                    System.out.println("║           LOGGING OUT...               ║");
-                    System.out.println("╚════════════════════════════════════════╝");
+                case "5":
+                    System.out.println("\n" + BORDER);
+                    printLine("STUDENT LOGGED OUT SUCCESSFULLY");
+                    System.out.println(BORDER);
                     running = false;
                     break;
 
                 default:
-                    System.out.println(" [!] Invalid choice. Please try again.");
+                    System.out.println("Invalid choice. Please try again.");
                     pause();
+                    break;
             }
         }
     }
 
-    // OPTION 3: CREATE BOOKING
+    // ==========================================
+    //              CREATE BOOKING
+    // ==========================================
     private void createBooking(User student) {
 
-        System.out.println("\n╔════════════════════════════════════════╗");
-        System.out.println("║            CREATE BOOKING              ║");
-        System.out.println("╚════════════════════════════════════════╝");
+        System.out.println("\n" + BORDER);
+        printLine("CREATE BOOKING");
+        System.out.println(BORDER);
 
+        // Display available study spaces
         bookingDao.displayStudySpaces();
 
-        int spaceId = readPositiveInteger("\n Enter Study Space ID: ");
+        System.out.print("\nEnter Space ID: ");
 
-        LocalDate bookingDate = readBookingDate();
-
-        LocalTime startTime = readTime(" Enter Start Time (HH:MM): ");
-
-        LocalTime endTime;
-
-        while (true) {
-
-            endTime = readTime(" Enter End Time (HH:MM): ");
-
-            if (endTime.isAfter(startTime)) {
-                break;
-            }
-
-            System.out.println(" [!] Invalid time! End time must be later than start time.");
-        }
-
-        String date = bookingDate.toString();
-        String start = startTime.format(TIME_FORMAT);
-        String end = endTime.format(TIME_FORMAT);
-
-        System.out.println("\n╔════════════════════════════════════════╗");
-        System.out.println("║            BOOKING DETAILS             ║");
-        System.out.println("╚════════════════════════════════════════╝");
-        System.out.println(" Student Name   : " + student.fullName());
-        System.out.println(" Student ID     : " + student.user_id());
-        System.out.println(" Study Space ID : " + spaceId);
-        System.out.println(" Booking Date   : " + date);
-        System.out.println(" Start Time     : " + start);
-        System.out.println(" End Time       : " + end);
-        System.out.println(" Status         : PENDING");
-        System.out.println("──────────────────────────────────────────");
+        int spaceId;
 
         try {
+            spaceId = Integer.parseInt(scanner.nextLine().trim());
 
-            boolean available = bookingDao.isSpaceAvailable(
-                    spaceId, date, start, end, 0
-            );
-
-            if (!available) {
-                System.out.println("\n [X] Booking cannot be created. Space is occupied.");
+            if (spaceId <= 0) {
+                System.out.println("Invalid Space ID.");
                 pause();
                 return;
             }
 
-            System.out.println("\n [✔] The selected time is available.");
+        } catch (NumberFormatException e) {
+            System.out.println("Please enter a valid Space ID.");
+            pause();
+            return;
+        }
 
-            if (confirm(" Confirm booking? (Y/N): ")) {
+        System.out.print("Enter Booking Date (YYYY-MM-DD): ");
+        String bookingDate = scanner.nextLine().trim();
 
-                boolean saved = bookingDao.createBooking(
-                        student.user_id(),
-                        spaceId,
-                        date,
-                        start,
-                        end
-                );
+        System.out.print("Enter Start Time (HH:MM): ");
+        String startTime = scanner.nextLine().trim();
 
-                if (saved) {
-                    System.out.println("\n╔════════════════════════════════════════╗");
-                    System.out.println("║      BOOKING SAVED SUCCESSFULLY!       ║");
-                    System.out.println("║      Status: PENDING                   ║");
-                    System.out.println("╚════════════════════════════════════════╝");
-                } else {
-                    System.out.println(" [X] Booking was not saved.");
-                }
+        System.out.print("Enter End Time (HH:MM): ");
+        String endTime = scanner.nextLine().trim();
 
+        // ======================================
+        // BOOKING DETAILS
+        // ======================================
+
+        System.out.println("\n" + BORDER);
+        printLine("BOOKING DETAILS");
+        System.out.println(BORDER);
+
+        printDetail("Student", student.fullName());
+        printDetail("Space ID", String.valueOf(spaceId));
+        printDetail("Booking Date", bookingDate);
+        printDetail("Start Time", startTime);
+        printDetail("End Time", endTime);
+
+        System.out.println(BORDER);
+
+        System.out.print("Confirm booking? (Y/N): ");
+
+        String answer = scanner.nextLine().trim();
+
+        // Accept Y or YES
+        if (answer.equalsIgnoreCase("Y")
+                || answer.equalsIgnoreCase("YES")) {
+
+            boolean success = bookingDao.createBooking(
+                    student.user_id(),
+                    spaceId,
+                    bookingDate,
+                    startTime,
+                    endTime
+            );
+
+            if (success) {
+                System.out.println("\nBooking request submitted successfully!");
+                System.out.println("Booking Status: PENDING");
             } else {
-                System.out.println(" [!] Booking cancelled by student.");
+                System.out.println("\nBooking was not created.");
+                System.out.println("Please check the space and time availability.");
             }
 
-        } catch (SQLException e) {
-            System.out.println(" [X] Booking error: " + e.getMessage());
+        } else {
+            System.out.println("Booking cancelled.");
         }
 
         pause();
     }
 
-    // READ AND VALIDATE DATE
-    private LocalDate readBookingDate() {
-
-        while (true) {
-
-            System.out.print(" Enter Booking Date (YYYY-MM-DD): ");
-
-            String input = scanner.nextLine().trim();
-
-            try {
-
-                LocalDate date = LocalDate.parse(input);
-
-                if (date.isBefore(LocalDate.now())) {
-                    System.out.println(" [!] You cannot book a date in the past.");
-                    continue;
-                }
-
-                return date;
-
-            } catch (DateTimeParseException e) {
-                System.out.println(" [!] Invalid date format. Please use YYYY-MM-DD.");
-            }
-        }
-    }
-
-    // READ AND VALIDATE TIME
-    private LocalTime readTime(String message) {
-
-        while (true) {
-
-            System.out.print(message);
-
-            String input = scanner.nextLine().trim();
-
-            try {
-
-                return LocalTime.parse(input, TIME_FORMAT);
-
-            } catch (DateTimeParseException e) {
-                System.out.println(" [!] Invalid time format. Please use HH:MM.");
-            }
-        }
-    }
-
-    // READ POSITIVE INTEGER
-    private int readPositiveInteger(String message) {
-
-        while (true) {
-
-            System.out.print(message);
-
-            try {
-
-                int number = Integer.parseInt(
-                        scanner.nextLine().trim()
-                );
-
-                if (number > 0) {
-                    return number;
-                }
-
-                System.out.println(" [!] Please enter a number greater than zero.");
-
-            } catch (NumberFormatException e) {
-                System.out.println(" [!] Invalid input. Please enter a number.");
-            }
-        }
-    }
-
-    // YES / NO QUESTION
-    // Accepts: Y, y, YES, yes, Yes ...   Anything else counts as No.
-    private boolean confirm(String message) {
-
-        System.out.print(message);
-
-        String answer = scanner.nextLine().trim();
-
-        return answer.equalsIgnoreCase("Y")
-                || answer.equalsIgnoreCase("YES");
-    }
-
-    // OPTION 4: MANAGE MY BOOKINGS
+    // ==========================================
+    // MANAGE MY BOOKINGS
+    // ==========================================
     private void manageMyBookings(User student) {
 
         boolean managing = true;
 
         while (managing) {
 
-            System.out.println("\n╔════════════════════════════════════════╗");
-            System.out.println("║          MANAGE MY BOOKINGS            ║");
-            System.out.println("╚════════════════════════════════════════╝");
-            System.out.println(" [1] Edit My Upcoming Booking");
-            System.out.println(" [2] Cancel My Upcoming Booking");
-            System.out.println(" [3] Back to Student Menu");
-            System.out.println("══════════════════════════════════════════");
-            System.out.print(" Enter your choice: ");
+            System.out.println("\n" + BORDER);
+            printLine("MANAGE MY BOOKINGS");
+            System.out.println(BORDER);
+
+            printLine("[1] View My Bookings");
+            printLine("[2] Cancel My Booking");
+            printLine("[3] Back");
+
+            System.out.println(BORDER);
+            System.out.print("Enter choice: ");
 
             String choice = scanner.nextLine().trim();
 
             switch (choice) {
 
                 case "1":
-                    editBooking(student);
+                    bookingDao.displayMyBookings(student.user_id());
+                    pause();
                     break;
 
                 case "2":
-                    cancelBooking(student);
+                    cancelMyBooking(student);
                     break;
 
                 case "3":
@@ -290,98 +210,109 @@ public class StudentMenu {
                     break;
 
                 default:
-                    System.out.println(" [!] Invalid choice.");
+                    System.out.println("Invalid choice.");
                     pause();
+                    break;
             }
         }
     }
 
-    // EDIT BOOKING
-    private void editBooking(User student) {
+    // ==========================================
+    // CANCEL MY BOOKING
+    // ==========================================
+    private void cancelMyBooking(User student) {
 
-        System.out.println("\n╔════════════════════════════════════════╗");
-        System.out.println("║            EDIT MY BOOKING             ║");
-        System.out.println("╚════════════════════════════════════════╝");
+        System.out.println("\n" + BORDER);
+        printLine("CANCEL MY BOOKING");
+        System.out.println(BORDER);
 
-        bookingDao.displayMyUpcomingBookings(student.user_id());
+        bookingDao.displayMyBookings(student.user_id());
 
-        int bookingId = readPositiveInteger(
-                "\n Enter Booking ID to edit: "
-        );
+        System.out.print("\nEnter Booking ID to cancel (0 to go back): ");
 
-        LocalDate bookingDate = readBookingDate();
+        try {
 
-        LocalTime startTime = readTime(
-                " Enter New Start Time (HH:MM): "
-        );
+            int bookingId = Integer.parseInt(scanner.nextLine().trim());
 
-        LocalTime endTime;
-
-        while (true) {
-
-            endTime = readTime(" Enter New End Time (HH:MM): ");
-
-            if (endTime.isAfter(startTime)) {
-                break;
+            if (bookingId == 0) {
+                return;
             }
 
-            System.out.println(" [!] End time must be later than start time.");
-        }
+            if (bookingId < 0) {
+                System.out.println("Invalid Booking ID.");
+                pause();
+                return;
+            }
 
-        if (confirm(" Confirm changes? (Y/N): ")) {
+            System.out.print("Are you sure you want to cancel? (Y/N): ");
 
-            boolean updated = bookingDao.updateBooking(
-                    student.user_id(),
-                    bookingId,
-                    bookingDate.toString(),
-                    startTime.format(TIME_FORMAT),
-                    endTime.format(TIME_FORMAT)
-            );
+            String answer = scanner.nextLine().trim();
 
-            if (updated) {
-                System.out.println(" [✔] Booking updated successfully!");
+            if (answer.equalsIgnoreCase("Y")
+                    || answer.equalsIgnoreCase("YES")) {
+
+                // IMPORTANT:
+                // First parameter = userId
+                // Second parameter = bookingId
+
+                boolean cancelled = bookingDao.cancelBooking(
+                        student.user_id(),
+                        bookingId
+                );
+
+                if (cancelled) {
+                    System.out.println("Booking cancelled successfully!");
+                } else {
+                    System.out.println("Unable to cancel booking.");
+                }
+
             } else {
-                System.out.println(" [X] Booking was not updated.");
+                System.out.println("Cancellation cancelled.");
             }
 
-        } else {
-            System.out.println(" [!] Update cancelled.");
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid Booking ID.");
         }
 
         pause();
     }
 
-    // CANCEL BOOKING
-    private void cancelBooking(User student) {
+    // ==========================================
+    // TABLE FORMATTING
+    // ==========================================
+    private void printLine(String text) {
 
-        System.out.println("\n╔════════════════════════════════════════╗");
-        System.out.println("║           CANCEL MY BOOKING            ║");
-        System.out.println("╚════════════════════════════════════════╝");
-
-        bookingDao.displayMyUpcomingBookings(student.user_id());
-
-        int bookingId = readPositiveInteger(
-                "\n Enter Booking ID to cancel: "
-        );
-
-        if (confirm(" Are you sure you want to cancel? (Y/N): ")) {
-
-            bookingDao.cancelBooking(
-                    student.user_id(),
-                    bookingId
-            );
-
-        } else {
-            System.out.println(" [!] Cancellation aborted.");
+        if (text == null) {
+            text = "";
         }
 
-        pause();
+        if (text.length() > 76) {
+            text = text.substring(0, 73) + "...";
+        }
+
+        System.out.printf("| %-76s |%n", text);
     }
 
+    private void printDetail(String label, String value) {
+
+        if (value == null) {
+            value = "";
+        }
+
+        if (value.length() > 53) {
+            value = value.substring(0, 50) + "...";
+        }
+
+        System.out.printf("| %-20s | %-53s |%n", label, value);
+    }
+
+    // ==========================================
     // PAUSE
+    // ==========================================
     private void pause() {
 
-        System.out.println("\n Press ENTER to continue...");
+        System.out.println("\n" + BORDER);
+        System.out.print("Press ENTER to continue...");
         scanner.nextLine();
     }
 }

@@ -33,8 +33,8 @@ public class Main {
         // Close Scanner after logout/exit
         scanner.close();
 
-        System.out.println("\n======================================");
-        System.out.println("STUDY SPACE BOOKING SYSTEM CLOSED");
-        System.out.println("======================================");
+        System.out.println("\n==========================================================");
+        System.out.println(               "STUDY SPACE BOOKING SYSTEM CLOSED");
+        System.out.println("=======-----------------------===============================");
     }
 }
